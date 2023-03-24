@@ -1,0 +1,6 @@
+{
+    "log_entry_head": "[{UTC_TIMESTAMP}]:",
+    "log_entry_tail": "\n",
+    "host_down_message": "{FRIENDLY_NAME} | {IP} is down!",
+    "host_up_message": "{FRIENDLY_NAME} | {IP} is up!"
+}

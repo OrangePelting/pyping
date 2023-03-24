@@ -1,0 +1,4 @@
+[2023-03-24 -- 12:03:32]:CloudFlare | 1.1.1.1 is down!('[2023-03-24 -- 12:04:57]:', 'CloudFlare | 1.1.1.1 is up!', '\n')[2023-03-24 -- 12:05:00]:CloudFlare | 1.1.1.1 is down!
+[2023-03-24 -- 12:06:04]:CloudFlare | 1.1.1.1 is down!
+[2023-03-24 -- 12:06:05]:CloudFlare | 1.1.1.1 is down!
+[2023-03-24 -- 12:06:05]:CloudFlare | 1.1.1.1 is down!

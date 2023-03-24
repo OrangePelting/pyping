@@ -1,23 +1,11 @@
 import subprocess
 import platform
-import logging
+import eventreporter
 import json
 
 from threading import Timer
 
-
-class Host:
-    """Represents a host on the network"""
-    def __init__(self, ip: str, friendly_name: (str, None) = None):
-        self.ip = ip
-        self.friendly_name = friendly_name
-
-    def get_config(self) -> dict:
-        """
-        Returns the HostMonitor's configuration as a dictionary which can easily be saved in a .json file.
-        eg: {}
-        """
-        return {"ip": self.ip, "friendly_name": self.friendly_name}
+from host import Host
 
 
 class Monitor:
@@ -40,14 +28,29 @@ class Monitor:
 
         self._attempts = 0
         self._is_running = False
+        self._logger = eventreporter.EventReporter(self.target_host, "./pywatch.log")
 
-    def get_config(self) -> dict:
+    def pack(self) -> dict:
         """
         Returns the HostMonitor's configuration as a dictionary which can easily be saved in a .json file.
         eg: {}
         """
-        return {"target_host": Host.get_config(), "interval": self.interval, "tolerance": self.tolerance}
+        return {"target_host": self.target_host.pack(), "interval": self.interval,
+                "tolerance": self.tolerance, "logger": self._logger}
+
+    def _ping(self):
+        if platform.system().lower() == "windows":
+            pram = "-n"
+        else:
+            pram = "-c"
+
+        command = ["ping", pram, "1", self.target_host.ip]
+        output = subprocess.call(command)
+        if output == 1 or "Destination host unreachable" in output:
+            return False
+        else:
+            return True
 
 # todo: Add daemon threading.
-# todo: Add pinging function.
+# todo: Add... ya know.. a pinging function?
 # todo: Add functionality to allow watchers to be loaded from the watchers.json file.

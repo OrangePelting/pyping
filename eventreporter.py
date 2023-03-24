@@ -1,46 +1,48 @@
 from datetime import datetime
+import json
+import logging
+from host import Host
+
+# Set the logging level for my own debugging
+logging.basicConfig(level=40)
+# todo: remove this and hope nobody realizes you wasted a bunch of time on your own logging function
+
+# Set the default log messages.
+with open("./default_messages.json", "r") as j:
+    default_messages = json.load(j)
 
 
 def get_timestamp() -> str:
     """Returns the date and time in local time. Style:('yyyy-mm-dd -- HH:MM:SS')"""
+    logging.debug("Fetched time")
     return datetime.now().strftime("%Y-%m-%d -- %H:%M:%S")
 
 
 def get_utc_timestamp() -> str:
     """Returns the date and time in UTC time. 'Style:('yyyy-mm-dd -- HH:MM:SS')"""
+    logging.debug("Fetch UTC time")
     return datetime.utcnow().strftime("%Y-%m-%d -- %H:%M:%S")
 
 
-default_messages = {
-    "log_entry_head": "[{UTC_TIMESTAMP}]:",
-    "log_entry_tail": "",
-    "host_down_message": "{FRIENDLY_NAME} | {IP} is down!",
-    "host_up_message": "{FRIENDLY_NAME} | {IP} is up!"
-}
-
-
 # This is going to be the class used to create logs and enter them in log files.
-class Log:
+class EventReporter:
     """
     Creates logs and appends them to the specified log file.
         Parameters:
-            ip (str): The IP of the host device.
-            friendly_name (str): Friendly name of host device.
+            host (pywatcher.Host): The host device.
             output_file (str): The log file to save logs to.
+            messages (dict): The message segments that will be used in log entries
     """
 
-    def __init__(self, ip: str, friendly_name: [str, None], output_file: str):
-        # These attributes are set during the creation of the object.
-        # unpack() will not modify these attributes.
+    def __init__(self, host: Host, output_file: str, messages=default_messages):
+        if messages is None:
+            messages = default_messages.copy()
+        logging.debug("Created Logger")
+
         self.path_to_output_file = output_file
-        self.ip = ip
-        self.friendly_name = friendly_name
-        # Holds message segments with dynamic content.
-        self._message_segments = {
-            "log_entry_head": default_messages["log_entry_head"],
-            "log_entry_tail": default_messages["log_entry_tail"],
-            "host_down_message": default_messages["host_down_message"],
-            "host_up_message": default_messages["host_up_message"]}
+        self.ip = host.ip
+        self.friendly_name = host.friendly_name
+        self._message_segments = messages.copy()
 
     def _friendly_name_or_ip(self) -> str:
         """Uses the host's ip address in place of the friendly name if no friendly name is provided"""
@@ -66,15 +68,17 @@ class Log:
                 key (str): Message segment address in _messages dictionary.
         """
         try:    # This will work if you use the program correctly
+            logging.debug("Attempting to add dynamic content")
             return self._message_segments[key].format(
                 UTC_TIMESTAMP=get_utc_timestamp(),
                 TIMESTAMP=get_timestamp(),
                 FRIENDLY_NAME=self._friendly_name(),
                 FRIENDLY_NAME_OR_IP=self._friendly_name_or_ip(),
                 IP=self.ip)
-        except KeyError:    # This will only occur with user error
+        except KeyError as error:    # This will only occur with user error
+            logging.error(f"Failed to add dynamic content {error}")
             self._message_segments[key] = default_messages[key]
-            return str(f"Key Error found in {key}! Resetting to default"    # The indentation.. It's so ugly
+            return str(f"Key Error found in {key}! Reset {key} to default"    # The indentation.. It's so ugly
                        + self._message_segments[key].format(
                             UTC_TIMESTAMP=get_utc_timestamp(),
                             TIMESTAMP=get_timestamp(),
@@ -98,10 +102,23 @@ class Log:
         """Returns host_up_message with dynamic content added."""
         return self._add_dynamic_content("host_up_message")
 
-# todo: Maybe keep this? If so, add a docstring.
+    # todo: Maybe keep this? If so, add a docstring.
     def _test_dynamic_content(self):
+        logging.debug("Testing logs with dynamic content!")
         print(self._log_entry_head(), self._host_up_message(), self._log_entry_tail(), )
         print(self._log_entry_head(), self._host_down_message(), self._log_entry_tail())
 
-# todo: add pack and unpack functions so that custom log templates can be loaded into the logger object.
-# todo: add host_up and host_down functions to make entries to the log.
+    def pack(self) -> dict:
+        """
+        Returns the Logger's configuration as a dictionary which can easily be saved in a .json file.
+        eg: {}
+        """
+        return self._message_segments
+
+    def log_host_down(self):
+        with open(self.path_to_output_file, 'a+') as a:
+            a.write(self._log_entry_head() + self._host_down_message() + self._log_entry_tail())
+
+    def log_host_up(self):
+        with open(self.path_to_output_file, 'a+') as a:
+            a.write(self._log_entry_head() + self._host_down_message() + self._log_entry_tail())

@@ -1,14 +1,14 @@
 from datetime import datetime
 import json
 import logging
-from host import Host
+from source.host import Host
 
 # Set the logging level for my own debugging
-logging.basicConfig(level=40)
+logging.basicConfig(level=0)
 # todo: remove this and hope nobody realizes you wasted a bunch of time on your own logging function
 
 # Set the default log messages.
-with open("./default_messages.json", "r") as j:
+with open("./source/default_messages.json", "r") as j:
     default_messages = json.load(j)
 
 
@@ -29,7 +29,7 @@ class EventReporter:
     """
     Creates logs and appends them to the specified log file.
         Parameters:
-            host (pywatcher.Host): The host device.
+            host (monitor.Host): The host device.
             output_file (str): The log file to save logs to.
             messages (dict): The message segments that will be used in log entries
     """
@@ -116,9 +116,11 @@ class EventReporter:
         return self._message_segments
 
     def log_host_down(self):
+        logging.debug("Logged host down")
         with open(self.path_to_output_file, 'a+') as a:
             a.write(self._log_entry_head() + self._host_down_message() + self._log_entry_tail())
 
     def log_host_up(self):
+        logging.debug("Logged host up.")
         with open(self.path_to_output_file, 'a+') as a:
-            a.write(self._log_entry_head() + self._host_down_message() + self._log_entry_tail())
+            a.write(self._log_entry_head() + self._host_up_message() + self._log_entry_tail())

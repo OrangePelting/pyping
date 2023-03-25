@@ -1,9 +1,46 @@
-from os import system, name
+from source.utilities import *
 import source.monitor as pywatcher
 import json
 
 
-def create_host():
+def load_watchers():
+    # An empty dictionary we can store the the watchers in once we finish unpacking them.
+    watchers_in_prep = {}
+
+    # Load the watchers from the watchers.json file.
+    with open("./source/watchers.json", "r") as j:
+        jsonified_watchers = json.load(j)   # Jasonify is a word, I just made it up.
+
+    # Takes each watcher that was just loaded and un-jasonifies it.
+    for k, v in jsonified_watchers.items():
+        watchers_in_prep[k] = \
+            pywatcher.Monitor(pywatcher.Host(v["target_host"]["ip"], v["target_host"]["friendly_name"]),
+                              v["interval"], v["tolerance"], messages=v["logger"])
+
+    return watchers_in_prep
+
+
+# Now we load the actual watcher objects into a dictionary that we can work with
+watchers = load_watchers()
+
+
+def save_watchers():
+    """Packs watchers and stores them in watchers.json"""
+    # An empty dictionary where we can store the watchers once we turn them to json compatible dictionaries.
+    jsonified_watchers = {}
+
+    # Go through all the watchers and pack them up.
+    for k, v, in watchers.items():
+        jsonified_watchers[k] = v.pack()
+
+    # Save them to a file.
+    with open("./source/watchers.json", "w") as w:
+        json.dump(jsonified_watchers, w)
+
+
+# Putting this first because it's the first step in creating a watcher.
+def create_host() -> pywatcher.Host:
+    """Creates a host object."""
     i = input("Host ip address: ")
     f = input("Host friendly name (optional): ")
     if f:
@@ -12,132 +49,128 @@ def create_host():
         return pywatcher.Host(i)
 
 
-def int_input(prompt):
-    while True:
-        try:
-            return int(input(prompt))
-        except ValueError:
-            print("Please enter an integer.")
-            continue
+# This is the second step in creating a watcher so it goes second.
+def register_watcher(watcher: pywatcher.Monitor):
+    """Names watcher and adds it to the watchers list."""
+    watcher_name = check_name("Name: ", watchers)
+    watchers[watcher_name] = watcher
 
 
-def create_watcher(h):
-    tbp = int_input("Time between pings: ")
-    nofbhird = int_input("Number of fails before host is reported down: ") # Because fuck you! That's why.
+# This actually implements those steps and puts everything together.
+def create_watcher():
+    """Creates a watcher object."""
+    host = create_host()
+    interval = int_input("Time between pings: ")
+    tolerance = int_input("Number of fails before host is reported down: ")
     output_file = input("Output file (leave blank for default): ")
+
     if output_file:
-        return pywatcher.Monitor(h, tbp, nofbhird, output_file)
+        watcher = pywatcher.Monitor(host, interval, tolerance, output_file)
     else:
-        return pywatcher.Monitor(h, tbp, nofbhird)
+        watcher = pywatcher.Monitor(host, interval, tolerance)
+
+    register_watcher(watcher)
+    input("Created watcher!")
 
 
-def check_name(prompt, check_against):
+def get_watchers_and_states() -> dict:
+    """Creates a list of watchers with their current status."""
 
-    while True:
-        n = input(prompt)
-        if n in check_against:
-            print("Sorry, that name is already taken!")
-            continue
-        else:
-            return n
+    # An empty dictionary to fill with the data that will be collected below.
+    watchers_and_states = {}
 
+    i = 1   # Iterator
 
-def list_watchers():
-    watcher_list = ""
-    for w in watchers:
-        watcher_list += f"{w}\n"
-    return watcher_list
-
-
-def clear():
-    if name == "nt":
-        system("cls")
-    else:
-        system("clear")
-
-
-def load_watchers():
-    watchers_in_prep = {}
-    with open("./source/watchers.json", "r") as j:
-        jsonified_watchers = json.load(j)
-    for k, v in jsonified_watchers.items():
-        watchers_in_prep[k] = \
-            pywatcher.Monitor(pywatcher.Host(v["target_host"]["ip"], v["target_host"]["friendly_name"]),
-                              v["interval"], v["tolerance"], messages=v["logger"])
-    return watchers_in_prep
-
-
-watchers = load_watchers()
-
-
-def save_watchers():
-    jsonified_watchers = {}
-    for k, v, in watchers.items():
-        jsonified_watchers[k] = v.pack()
-    with open("./source/watchers.json", "w") as w:
-        json.dump(jsonified_watchers, w)
-
-
-def get_watchers_and_states():
-    watchers_menu = {}
-    i = 1
+    # Goes through each of the watchers and assigns them an index number starting at one,
+    # Each key in the dictionary holds another dictionary with the name, status, and the watcher object.
     for k, v in watchers.items():
-        watchers_menu[i] = {"Name": k, "Status": v.get_state(), "watcher": v}
+        watchers_and_states[i] = {"Name": k, "Status": v.get_state(), "watcher": v}
         i += 1
-    return watchers_menu
+
+    return watchers_and_states
 
 
-def toggle_watcher_state(w):
-    if w.get_state() == "Running":
-        w.stop()
+def present_watchers_and_states(watchers_and_states: dict):
+    """
+    Presents the current watchers along with their current states.
+    States are Running or Stopped
+    """
+
+    # Goes through each watcher and prints it's index, name, and status.
+    # Displays in this format: [1, CloudFlare, Running.]
+    for k, v in watchers_and_states.items():
+        print(f"{k}, {v['Name']}, {v['Status']}.")
+    print("\n")
+
+
+def list_and_toggle_watchers():
+    """
+    Lists watchers and accepts user input.
+    Can turn watchers on or off.
+    """
+    # Instructions
+    print("Please choose a watcher to start/stop or enter 0 to go back.")
+
+    # Fetches the watcher's and their states, presents them, and prompts user for an answer
+    options = get_watchers_and_states()
+    present_watchers_and_states(options)
+    answer = int_input("> ")
+
+    if answer == 0:
+        pass    # Returns to main menu if user submits a 0
+    else:
+        try:    # Attempts to toggle the watcher
+            toggle_watcher_state(options[answer]["watcher"])
+        except KeyError:      # If the user inputs an index number out of range, it will exit to the main menu.
+            print("Sorry, that was an invalid entry.")
+            input()
+
+
+def toggle_watcher_state(watcher):
+    """Toggles watcher state.
+    Will stop running watchers and start stopped watchers."""
+    # Get the state of the watcher
+    if watcher.get_state() == "Running":
+        watcher.stop()      # If the watcher was running, stop it.
         print("Stopped")
     else:
-        w.start()
+        watcher.start()     # If the watcher wasn't runnig, start it.
         print("Started")
 
 
-while True:
-    # Main Menu
-    print("Please choose an option")
-    print("C - Create new watcher")
-    print("L - List watchers")
-    print("S - Start/Stop watcher")
-    print("D - Delete watcher")
-    print("W - Save watchers")
-    print("Q - Save watchers and quit")
-    command = input("> ").lower()
-    clear()
-
-    if command == "c":
-        watcher = create_watcher(create_host())
-        watcher_name = check_name("Name: ", watchers)
-        input("Created watcher!")
-        watchers[watcher_name] = watcher
+def main():
+    """The main cli for interacting with watchers"""
+    while True:
+        # Main Menu
+        print("Please choose an option")
+        print("C - Create new watcher")
+        print("L - List watchers and Start/Stop watchers")
+        print("D - Delete watcher")
+        print("S - Save watchers")
+        print("Q - Save watchers and quit")
+        command = input("> ").lower()
         clear()
-    elif command == "l":
-        print(list_watchers())
-        input()
-    elif command == "s":
-        print("Please choose a watcher to start/stop or enter 0 to go back.")
-        options = get_watchers_and_states()
-        for key, value in options.items():
-            print(f"{key}, {value['Name']}, {value['Status']}.")
-        print("\n")
-        answer = int_input("> ")
-        if answer == 0:
-            continue
-        else:
-            try:
-                toggle_watcher_state(options[answer]["watcher"])
-            except IndexError:
-                print("Sorry, that entry is invalid.")
 
-    elif command == "d":
-        pass
-    elif command == "w":
-        save_watchers()
-    elif command == "q":
-        save_watchers()
-        quit(0)
-    else:
-        print(f"\x1b[0;31;40m Sorry, that wasn't a valid command \x1b[0m")
+        if command == "c":
+            create_watcher()   # Creates a new watcher object
+
+        elif command == "l":
+            list_and_toggle_watchers()
+
+        elif command == "d":
+            pass
+
+        elif command == "s":
+            save_watchers()
+
+        elif command == "q":
+            save_watchers()
+            quit(0)
+
+        else:
+            print(f"\x1b[0;31;40m Sorry, that wasn't a valid command \x1b[0m")
+    # End of main loop
+
+
+if __name__ == "__main__":
+    main()

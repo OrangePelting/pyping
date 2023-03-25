@@ -4,8 +4,7 @@ import logging
 from source.host import Host
 
 # Set the logging level for my own debugging
-logging.basicConfig(level=0)
-# todo: remove this and hope nobody realizes you wasted a bunch of time on your own logging function
+logging.basicConfig(level=50)
 
 # Set the default log messages.
 with open("./source/default_messages.json", "r") as j:
@@ -101,12 +100,6 @@ class EventReporter:
     def _host_up_message(self) -> str:
         """Returns host_up_message with dynamic content added."""
         return self._add_dynamic_content("host_up_message")
-
-    # todo: Maybe keep this? If so, add a docstring.
-    def _test_dynamic_content(self):
-        logging.debug("Testing logs with dynamic content!")
-        print(self._log_entry_head(), self._host_up_message(), self._log_entry_tail(), )
-        print(self._log_entry_head(), self._host_down_message(), self._log_entry_tail())
 
     def pack(self) -> dict:
         """

@@ -3,7 +3,11 @@ import source.monitor as pywatcher
 import json
 
 
+__version__ = "1"
+
+
 def load_watchers():
+    """Loads watchers from the watchers.json file."""
     # An empty dictionary we can store the the watchers in once we finish unpacking them.
     watchers_in_prep = {}
 
@@ -20,7 +24,7 @@ def load_watchers():
     return watchers_in_prep
 
 
-# Now we load the actual watcher objects into a dictionary that we can work with
+# Now we load the actual watcher objects into a dictionary that we can work with.
 watchers = load_watchers()
 
 
@@ -103,6 +107,26 @@ def present_watchers_and_states(watchers_and_states: dict):
     print("\n")
 
 
+def present_watchers(watchers_and_states: dict):
+    """"""
+
+    for k, v in watchers_and_states.items():
+        print(f"{k}, {v['Name']}.")
+    print("\n")
+
+
+def toggle_watcher_state(watcher):
+    """Toggles watcher state.
+    Will stop running watchers and start stopped watchers."""
+    # Get the state of the watcher
+    if watcher.get_state() == "Running":
+        watcher.stop()      # If the watcher was running, stop it.
+        print("Stopped")
+    else:
+        watcher.start()     # If the watcher wasn't runnig, start it.
+        print("Started")
+
+
 def list_and_toggle_watchers():
     """
     Lists watchers and accepts user input.
@@ -122,24 +146,41 @@ def list_and_toggle_watchers():
         try:    # Attempts to toggle the watcher
             toggle_watcher_state(options[answer]["watcher"])
         except KeyError:      # If the user inputs an index number out of range, it will exit to the main menu.
+            print(f"Sorry, that was an invalid entry.")
+            input()
+
+
+def list_and_delete_watcher():
+    """
+    Lists watchers and accepts user input.
+    Can turn watchers on or off.
+    """
+    # Instructions
+    print("Please choose a watcher to delete or enter 0 to go back.")
+
+    # Fetches the watcher's and their states, presents them, and prompts user for an answer
+    options = get_watchers_and_states()
+    present_watchers(options)
+    answer = int_input("> ")
+
+    if answer == 0:
+        pass    # Returns to main menu if user submits a 0
+    else:
+        try:    # Attempts to toggle the watcher
+            del(watchers[options[answer]["Name"]])
+        except KeyError:      # If the user inputs an index number out of range, it will exit to the main menu.
             print("Sorry, that was an invalid entry.")
             input()
 
 
-def toggle_watcher_state(watcher):
-    """Toggles watcher state.
-    Will stop running watchers and start stopped watchers."""
-    # Get the state of the watcher
-    if watcher.get_state() == "Running":
-        watcher.stop()      # If the watcher was running, stop it.
-        print("Stopped")
-    else:
-        watcher.start()     # If the watcher wasn't runnig, start it.
-        print("Started")
-
-
 def main():
-    """The main cli for interacting with watchers"""
+    """The main CLI for interacting with watchers"""
+    print("==============================================================")
+    print(f"PyWatcher v{__version__}")
+    print("By: Created by Andrew G, with help from Ashton Webster")
+    print("And of course, big thanks to Stack Overflow")
+    print("==============================================================")
+
     while True:
         # Main Menu
         print("Please choose an option")
@@ -153,15 +194,18 @@ def main():
 
         if command == "c":
             create_watcher()   # Creates a new watcher object
+            clear()
 
         elif command == "l":
             list_and_toggle_watchers()
+            clear()
 
         elif command == "d":
-            pass
-
+            list_and_delete_watcher()
+            clear()
         elif command == "s":
             save_watchers()
+            clear()
 
         elif command == "q":
             save_watchers()

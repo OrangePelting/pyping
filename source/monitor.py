@@ -26,7 +26,7 @@ class Monitor:
 
         self._output_file = output_file
         self._attempts = 0
-        self._is_running = False
+        self._is_running = True
         self._run = False
         if messages is not None:
             self._logger = eventreporter.EventReporter(self.target_host, self._output_file, messages)
@@ -41,20 +41,22 @@ class Monitor:
         return {"target_host": self.target_host.pack(), "interval": self.interval,
                 "tolerance": self.tolerance, "output_file": self._output_file, "logger": self._logger.pack()}
 
-    def _ping(self):
+    def _ping(self):    # Thanks to all the kings and queens on stack overflow. Couldn't have done this without you!
+        """Pings the target host"""
         if platform.system().lower() == "windows":
             pram = "-n"
         else:
             pram = "-c"
 
+        # Builds the command
         command = ["ping", pram, "1", self.target_host.ip]
-        if subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT):
+        if subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=True):
             return False
         else:
             return True
 
     def _check_host(self):
-        """Checks to see if the host is up"""
+        """Checks the host state and logs changes in the output file"""
         while True:
             if self._is_running:
                 if self._ping():
@@ -76,17 +78,16 @@ class Monitor:
     def start(self):
         """Starts the monitor"""
         self._run = True
-        watcher = Thread(target=self._check_host)
+        watcher = Thread(target=self._check_host, daemon=True)
         watcher.start()
 
     def stop(self):
         """Stops the monitor"""
         self._run = False
 
-    def get_state(self):
+    def get_state(self) -> str:
+        """Checks to see if the monitor is running and returns the state as a string"""
         if self._run:
             return "Running"
         else:
             return "Stopped"
-
-# todo: Add functionality to allow watchers to be loaded from the watchers.json file.

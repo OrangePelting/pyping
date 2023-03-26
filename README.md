@@ -1,4 +1,5 @@
-#PyWatcher v1
+PyWatcher v1
+===
 By: **Andrew J. George** with help from **Ashton Webster** (and of course, the cool people on StackOverflow)
 <br>
 <br>

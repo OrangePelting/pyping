@@ -78,7 +78,7 @@ class Monitor:
     def start(self):
         """Starts the monitor"""
         self._run = True
-        watcher = Thread(target=self._check_host, daemon=True)
+        watcher = Thread(target=self._check_host, daemon=False)
         watcher.start()
 
     def stop(self):
